@@ -91,7 +91,10 @@ vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
 -- Set to true if you have a Nerd Font installed and selected in the terminal
-vim.g.have_nerd_font = false
+-- NOTE: requires a Nerd Font selected in your terminal. If icons render as
+-- boxes/question marks, install one (e.g. `brew install --cask
+-- font-jetbrains-mono-nerd-font`) and select it, or set this back to false.
+vim.g.have_nerd_font = true
 
 -- [[ Setting options ]]
 -- See `:help vim.o`
@@ -347,6 +350,10 @@ require('lazy').setup({
         { '<leader>s', group = '[S]earch' },
         { '<leader>t', group = '[T]oggle' },
         { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } },
+        { '<leader>x', group = 'Trouble/Diagnostics' },
+        { '<leader>p', group = '[P]ersistence/Session' },
+        { '<leader>g', group = '[G]it' },
+        { '<leader>d', group = '[D]ebug' },
       },
     },
   },
@@ -535,6 +542,13 @@ require('lazy').setup({
             vim.keymap.set(mode, keys, func, { buffer = event.buf, desc = 'LSP: ' .. desc })
           end
 
+          -- Let basedpyright provide hover for Python; ruff is only for
+          -- linting/formatting code actions, so silence its (empty) hover.
+          local attached = vim.lsp.get_client_by_id(event.data.client_id)
+          if attached and attached.name == 'ruff' then
+            attached.server_capabilities.hoverProvider = false
+          end
+
           -- Rename the variable under your cursor.
           --  Most Language Servers support renaming across files, etc.
           map('grn', vim.lsp.buf.rename, '[R]e[n]ame')
@@ -684,22 +698,21 @@ require('lazy').setup({
         -- ts_ls = {},
         --
         --
-        pylsp = {
+        -- Python: basedpyright for type-checking/navigation, ruff for fast
+        -- linting + code actions. Formatting is handled by conform (ruff_format).
+        basedpyright = {
           settings = {
-            pylsp = {
-              plugins = {
-                pyflakes = { enabled = false },
-                pycodestyle = { enabled = false },
-                autopep8 = { enabled = false },
-                yapf = { enabled = false },
-                mccabe = { enabled = false },
-                pylsp_mypy = { enabled = false },
-                pylsb_black = { enabled = false },
-                pylsb_isort = { enabled = false },
+            basedpyright = {
+              analysis = {
+                autoSearchPaths = true,
+                useLibraryCodeForTypes = true,
+                diagnosticMode = 'openFilesOnly',
+                typeCheckingMode = 'standard',
               },
             },
           },
         },
+        ruff = {},
 
         lua_ls = {
           -- cmd = { ... },
@@ -732,7 +745,12 @@ require('lazy').setup({
       -- for you, so that they are available from within Neovim.
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {
-        'stylua', -- Used to format Lua code
+        'stylua', -- Lua formatter (conform)
+        'shfmt', -- Shell formatter (conform)
+        'prettierd', -- JS/TS/JSON/YAML/HTML/CSS/Markdown formatter (conform)
+        'eslint_d', -- JS/TS linter (nvim-lint)
+        'markdownlint', -- Markdown linter (nvim-lint)
+        'checkmake', -- Makefile linter (nvim-lint)
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
@@ -886,14 +904,34 @@ require('lazy').setup({
       --  - va)  - [V]isually select [A]round [)]paren
       --  - yinq - [Y]ank [I]nside [N]ext [Q]uote
       --  - ci'  - [C]hange [I]nside [']quote
-      require('mini.ai').setup { n_lines = 500 }
+      --  - vaf / vif  - select Around/Inside a function (via Treesitter)
+      --  - vac / vic  - select Around/Inside a class (via Treesitter)
+      local ai = require 'mini.ai'
+      ai.setup {
+        n_lines = 500,
+        custom_textobjects = {
+          f = ai.gen_spec.treesitter { a = '@function.outer', i = '@function.inner' },
+          c = ai.gen_spec.treesitter { a = '@class.outer', i = '@class.inner' },
+        },
+      }
 
       -- Add/delete/replace surroundings (brackets, quotes, etc.)
+      -- NOTE: moved to the `gs` prefix so flash.nvim can own `s`/`S`.
       --
-      -- - saiw) - [S]urround [A]dd [I]nner [W]ord [)]Paren
-      -- - sd'   - [S]urround [D]elete [']quotes
-      -- - sr)'  - [S]urround [R]eplace [)] [']
-      require('mini.surround').setup()
+      -- - gsaiw) - [S]urround [A]dd [I]nner [W]ord [)]Paren
+      -- - gsd'   - [S]urround [D]elete [']quotes
+      -- - gsr)'  - [S]urround [R]eplace [)] [']
+      require('mini.surround').setup {
+        mappings = {
+          add = 'gsa',
+          delete = 'gsd',
+          find = 'gsf',
+          find_left = 'gsF',
+          highlight = 'gsh',
+          replace = 'gsr',
+          update_n_lines = 'gsn',
+        },
+      }
 
       -- Simple and easy statusline.
       --  You could remove this setup call if you don't like it,

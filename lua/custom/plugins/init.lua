@@ -1,61 +1,49 @@
--- You can add your own plugins here or in other files in this directory!
---  I promise not to create any merge conflicts in this directory :)
---
--- See the kickstart.nvim README for more information
---
-
+-- Formatting via conform.nvim (replaces the previous none-ls setup).
+--  Format-on-save plus a manual <leader>f. Formatters are installed by Mason
+--  (see mason-tool-installer in init.lua) and found on PATH via Mason's bin dir.
 return {
-  'nvimtools/none-ls.nvim',
-  dependencies = {
-    'nvimtools/none-ls-extras.nvim',
-    'jayp0521/mason-null-ls.nvim', -- ensure dependencies are installed
-  },
-  config = function()
-    local null_ls = require 'null-ls'
-    local formatting = null_ls.builtins.formatting   -- to setup formatters
-    local diagnostics = null_ls.builtins.diagnostics -- to setup linters
-
-    -- list of formatters & linters for mason to install
-    require('mason-null-ls').setup {
-      ensure_installed = {
-        'checkmake',
-        'prettier', -- ts/js formatter
-        'eslint_d', -- ts/js linter
-        'shfmt',
-        -- 'stylua', -- lua formatter; Already installed via Mason
-        -- 'ruff', -- Python linter and formatter; Already installed via Mason
-      },
-      -- auto-install configured formatters & linters (with null-ls)
-      automatic_installation = true,
-    }
-
-    local sources = {
-      diagnostics.checkmake,
-      formatting.prettier.with { filetypes = { 'html', 'json', 'yaml', 'markdown' } },
-      formatting.stylua,
-      formatting.shfmt.with { args = { '-i', '4' } },
-      formatting.terraform_fmt,
-      require('none-ls.formatting.ruff').with { extra_args = { '--extend-select', 'I' } },
-      require 'none-ls.formatting.ruff_format',
-    }
-
-    local augroup = vim.api.nvim_create_augroup('LspFormatting', {})
-    null_ls.setup {
-      -- debug = true, -- Enable debug mode. Inspect logs with :NullLsLog.
-      sources = sources,
-      -- you can reuse a shared lspconfig on_attach callback here
-      on_attach = function(client, bufnr)
-        if client.supports_method 'textDocument/formatting' then
-          vim.api.nvim_clear_autocmds { group = augroup, buffer = bufnr }
-          vim.api.nvim_create_autocmd('BufWritePre', {
-            group = augroup,
-            buffer = bufnr,
-            callback = function()
-              vim.lsp.buf.format { async = false }
-            end,
-          })
-        end
+  'stevearc/conform.nvim',
+  event = { 'BufWritePre' },
+  cmd = { 'ConformInfo' },
+  keys = {
+    {
+      '<leader>f',
+      function()
+        require('conform').format { async = true, lsp_format = 'fallback' }
       end,
-    }
-  end,
+      mode = '',
+      desc = '[F]ormat buffer',
+    },
+  },
+  opts = {
+    notify_on_error = false,
+    format_on_save = function(bufnr)
+      -- Disable autoformat on save for filetypes that lack a good formatter.
+      local disable_filetypes = { c = true, cpp = true }
+      local lsp_format_opt = disable_filetypes[vim.bo[bufnr].filetype] and 'never' or 'fallback'
+      return {
+        timeout_ms = 1000,
+        lsp_format = lsp_format_opt,
+      }
+    end,
+    formatters_by_ft = {
+      lua = { 'stylua' },
+      -- Run ruff to sort imports, then format.
+      python = { 'ruff_organize_imports', 'ruff_format' },
+      sh = { 'shfmt' },
+      terraform = { 'terraform_fmt' },
+      json = { 'prettierd', 'prettier', stop_after_first = true },
+      yaml = { 'prettierd', 'prettier', stop_after_first = true },
+      html = { 'prettierd', 'prettier', stop_after_first = true },
+      css = { 'prettierd', 'prettier', stop_after_first = true },
+      markdown = { 'prettierd', 'prettier', stop_after_first = true },
+      javascript = { 'prettierd', 'prettier', stop_after_first = true },
+      typescript = { 'prettierd', 'prettier', stop_after_first = true },
+      javascriptreact = { 'prettierd', 'prettier', stop_after_first = true },
+      typescriptreact = { 'prettierd', 'prettier', stop_after_first = true },
+    },
+    formatters = {
+      shfmt = { prepend_args = { '-i', '4' } },
+    },
+  },
 }
