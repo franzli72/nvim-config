@@ -1,7 +1,18 @@
+# Neovim generated files
+plugin/
+compiled/
+session/
+shada/
+swap/
+undo/
+backup/
+
+# OS junk
+.DS_Store
+
 tags
 test.sh
 .luarc.json
 nvim
 
 spell/
-lazy-lock.json
