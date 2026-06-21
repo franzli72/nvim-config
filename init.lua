@@ -354,6 +354,7 @@ require('lazy').setup({
         { '<leader>p', group = '[P]ersistence/Session' },
         { '<leader>g', group = '[G]it' },
         { '<leader>d', group = '[D]ebug' },
+        { '<leader>F', group = '[F]lutter' },
       },
     },
   },
