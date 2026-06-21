@@ -714,6 +714,10 @@ require('lazy').setup({
         },
         ruff = {},
 
+        -- Starlark / Bazel LSP (replaces the deprecated `bzl` package).
+        -- Remove this line if you don't edit Bazel/Starlark files.
+        starpls = {},
+
         lua_ls = {
           -- cmd = { ... },
           -- filetypes = { ... },
